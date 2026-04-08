@@ -7,9 +7,9 @@ import pytz # 👈 新增：專門對付跨國伺服器的時區套件
 # ==========================================
 # 🔑 雲端金鑰區 (記得填入你的真實金鑰)
 # ==========================================
-SUPABASE_URL = 'https://qdduovihbjzozlbuppsj.supabase.co'
-SUPABASE_KEY = 'sb_publishable_EZoRnAwbrZIAmdWuUwPm-A_1sZZkMnB'
-VIP_PASSWORD = 'VIP888'
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+VIP_PASSWORD = st.secrets["VIP_PASSWORD"]
 
 st.set_page_config(page_title="AI 股市戰略總部", page_icon="📈", layout="wide")
 
