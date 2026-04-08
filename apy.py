@@ -28,12 +28,34 @@ if not st.session_state['logged_in']:
         else:
             st.error("❌ 密碼錯誤，請重新輸入或聯繫管理員！")
     st.stop()
-
 @st.cache_resource
 def init_connection():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = init_connection()
+
+# --- 🚀 訪客計數引擎開始 ---
+# 確保同一個人在同一段時間內亂點按鈕，不會重複計算
+if 'has_counted' not in st.session_state:
+    # 1. 標記這個人已經算過人頭了
+    st.session_state['has_counted'] = True
+    
+    # 2. 去資料庫把現在的數字拿出來
+    res = supabase.table("visit_counter").select("visits").eq("id", 1).execute()
+    current_visits = res.data[0]['visits']
+    
+    # 3. 數字加 1，然後存回資料庫
+    new_visits = current_visits + 1
+    supabase.table("visit_counter").update({"visits": new_visits}).eq("id", 1).execute()
+else:
+    # 如果已經算過人頭，就只要純粹「讀取」最新數字來顯示就好
+    res = supabase.table("visit_counter").select("visits").eq("id", 1).execute()
+    new_visits = res.data[0]['visits']
+
+# 4. 在側邊欄 (Sidebar) 顯示超帥的計數器
+st.sidebar.metric(label="🔥 總監專屬：累積訪問人次", value=f"{new_visits} 次")
+# --- 🚀 訪客計數引擎結束 ---
+
 
 # ==========================================
 # ⏳ 核心邏輯：計算「當日早上 6:00」到「隔天早上 6:00」的時間區間
