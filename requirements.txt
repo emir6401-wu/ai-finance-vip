@@ -2,3 +2,8 @@ streamlit
 pandas
 supabase
 pytz
+yfinance
+requests
+openpyxl
+google-generativeai
+python-dotenv
