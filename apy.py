@@ -212,6 +212,19 @@ with tab_tw:
         df_surge = pd.DataFrame(selected_tw_record.get('surge_data', []))
         df_synergy = pd.DataFrame(selected_tw_record.get('synergy_data', []))
         
+        # --- 👇 終極修復：強制鎖定欄位順序，無視雲端 JSON 洗牌 ---
+        if not df_surge.empty:
+            surge_cols = ['觸發訊號', '證券代號', '證券名稱', '產業類別', '當日收盤價', '漲跌幅(%)', 'EMA20', '本益比(PE)', '淨值比(PB)', '本日成交量(張)', '外資買超(張)', '投信買超(張)']
+            # 只抓取存在的欄位，防呆
+            df_surge = df_surge[[c for c in surge_cols if c in df_surge.columns]]
+            
+        if not df_synergy.empty:
+            base_syn_cols = ['觸發訊號', '證券代號', '證券名稱', '產業類別', '同買分點名單', '同賣分點名單', '主力總淨買賣(張)', '最新收盤價', 'EMA20(月線)', '本益比(PE)', '淨值比(PB)']
+            # 動態抓取後面的外資投信日期欄位
+            extra_cols = [c for c in df_synergy.columns if c not in base_syn_cols]
+            df_synergy = df_synergy[[c for c in base_syn_cols if c in df_synergy.columns] + extra_cols]
+        # --- 👆 修復結束 ---
+
         st.markdown("#### 🎯 主力分點共振雷達")
         if not df_synergy.empty:
             st.dataframe(df_synergy, use_container_width=True, height=350)
