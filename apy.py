@@ -59,10 +59,7 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
 if not st.session_state['logged_in']:
-    
     col1, col2, col3 = st.columns([1, 2, 1])
-    
-    # 👈 左側區塊：結合雲端計數器的淺色系看板
     with col1:
         st.markdown("<br><br><br>", unsafe_allow_html=True)
         st.markdown(f"""
@@ -74,29 +71,23 @@ if not st.session_state['logged_in']:
             </div>
         """, unsafe_allow_html=True)
 
-    # 🎯 中間區塊：登入主畫面
     with col2:
         st.markdown("<h2 style='text-align: center;'>🔒 戰略總部 VIP 登入</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray;'>請輸入總監專屬通關密碼以解鎖今日戰報</p>", unsafe_allow_html=True)
-        
         pwd = st.text_input("通關密碼", type="password", label_visibility="collapsed", placeholder="請輸入密碼...")
-        
         if st.button("解鎖進入", use_container_width=True):
             if pwd == VIP_PASSWORD:
                 st.session_state['logged_in'] = True
                 st.rerun()
             else:
                 st.error("❌ 密碼錯誤，請重新輸入！")
-                
-    st.stop() # 🛑 阻擋未登入者往下看
+    st.stop() 
 
-# 登入成功後，在側邊欄也顯示一下尊榮的計數器
 st.sidebar.metric(label="🔥 總監專屬：累積訪問人次", value=f"{new_visits} 次")
 
 # ==========================================
 # ⏳ 資料庫讀取邏輯區
 # ==========================================
-# 🌏 亞洲戰區：計算時間區間
 def get_time_window():
     tz = pytz.timezone('Asia/Taipei')
     now = datetime.now(tz)
@@ -107,7 +98,6 @@ def get_time_window():
     end_time = start_time + timedelta(days=1)
     return start_time.isoformat(), end_time.isoformat()
 
-# 🌏 亞洲戰區讀取
 @st.cache_data(ttl=60)
 def load_daily_data():
     start_iso, end_iso = get_time_window()
@@ -116,7 +106,6 @@ def load_daily_data():
         return response.data
     except: return []
 
-# 🇹🇼 台股戰區讀取
 @st.cache_data(ttl=60)
 def load_tw_data():
     try:
@@ -124,25 +113,27 @@ def load_tw_data():
         return response.data
     except: return []
 
-# 🦅 美股戰區讀取
+# ⚡ 新增：盤差報告讀取 (高頻更新)
+@st.cache_data(ttl=30) 
+def load_bidask_data():
+    try:
+        response = supabase.table("tw_bidask_reports").select("*").order("created_at", desc=True).limit(1).execute()
+        return response.data
+    except: return []
+
 @st.cache_data(ttl=60)
 def load_us_data():
     try:
         response = supabase.table("us_market_reports").select("*").order("report_date", desc=True).limit(5).execute()
         return response.data
-    except Exception as e:
-        st.error(f"連線美股資料庫失敗: {e}")
-        return []
+    except: return []
 
-# 🛢️ 原物料戰區讀取
 @st.cache_data(ttl=60)
 def load_commodities_data():
     try:
         response = supabase.table("commodities_reports").select("*").order("report_date", desc=True).limit(5).execute()
         return response.data
-    except Exception as e:
-        st.error(f"連線原物料資料庫失敗: {e}")
-        return []
+    except: return []
 
 
 # ==========================================
@@ -151,7 +142,6 @@ def load_commodities_data():
 st.title("🧭 全球熱錢羅盤 - 戰略決策室")
 st.markdown("歡迎回來，總監。請選擇您要查看的資金戰區。")
 
-# 🗂️ 建立六大戰區分頁
 tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_commodities = st.tabs([
     "🌏 亞洲戰區 (日韓)", 
     "🇹🇼 台股主力動向", 
@@ -194,12 +184,45 @@ with tab_asia:
         st.info("🕒 報告區塊已於 06:00 淨空。正在等待今日的第一筆亞洲戰報上傳...")
 
 # ------------------------------------------
-# 🇹🇼 第二分頁：台股主力動向
+# 🇹🇼 第二分頁：台股主力動向 (含盤差與籌碼)
 # ------------------------------------------
 with tab_tw:
+    # --- ⚡ 區塊 1：即時內外盤差 ---
+    bidask_data = load_bidask_data()
+    if bidask_data:
+        latest_bidask = bidask_data[0]
+        st.markdown(f"### ⚡ 巨頭氣勢比狙擊 (熱門250大 | 報告時間: {latest_bidask['report_time']})")
+        st.caption("公式：(外盤-內盤)/(外盤+內盤)。比例 > 50% 代表買方不計代價掃貨；< -50% 代表賣方恐慌殺出。每日自動清除舊檔。")
+        
+        df_top30 = pd.DataFrame(latest_bidask.get('top_30', []))
+        df_bot30 = pd.DataFrame(latest_bidask.get('bottom_30', []))
+        
+        col_ba1, col_ba2 = st.columns(2)
+        with col_ba1:
+            st.success("🔥 買氣碾壓 (氣勢比 > 50%)")
+            if not df_top30.empty:
+                display_cols = ['狀態', '證券代號', '證券名稱', '氣勢比(%)', '內外盤差(張)', '外盤量(張)', '內盤量(張)']
+                df_top30 = df_top30[[c for c in display_cols if c in df_top30.columns]]
+                st.dataframe(df_top30, use_container_width=True, height=350)
+            else:
+                st.info("目前無任何熱門股達到買氣 > 50% 門檻。")
+                
+        with col_ba2:
+            st.error("🧊 倒貨碾壓 (氣勢比 < -50%)")
+            if not df_bot30.empty:
+                display_cols = ['狀態', '證券代號', '證券名稱', '氣勢比(%)', '內外盤差(張)', '外盤量(張)', '內盤量(張)']
+                df_bot30 = df_bot30[[c for c in display_cols if c in df_bot30.columns]]
+                st.dataframe(df_bot30, use_container_width=True, height=350)
+            else:
+                st.info("目前無任何熱門股達到賣壓 < -50% 門檻。")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.divider() 
+
+    # --- 📊 區塊 2：盤後籌碼雷達 ---
     tw_records = load_tw_data()
     if tw_records:
-        st.markdown("### 🇹🇼 台股籌碼雷達觀測")
+        st.markdown("### 🇹🇼 台股籌碼雷達觀測 (盤後)")
         
         def format_tw_time(record):
             date_str = record['report_date']
@@ -212,18 +235,15 @@ with tab_tw:
         df_surge = pd.DataFrame(selected_tw_record.get('surge_data', []))
         df_synergy = pd.DataFrame(selected_tw_record.get('synergy_data', []))
         
-        # --- 👇 終極修復：強制鎖定欄位順序，無視雲端 JSON 洗牌 ---
+        # 🛡️ 欄位強制排序防呆
         if not df_surge.empty:
             surge_cols = ['觸發訊號', '證券代號', '證券名稱', '產業類別', '當日收盤價', '漲跌幅(%)', 'EMA20', '本益比(PE)', '淨值比(PB)', '本日成交量(張)', '外資買超(張)', '投信買超(張)']
-            # 只抓取存在的欄位，防呆
             df_surge = df_surge[[c for c in surge_cols if c in df_surge.columns]]
             
         if not df_synergy.empty:
             base_syn_cols = ['觸發訊號', '證券代號', '證券名稱', '產業類別', '同買分點名單', '同賣分點名單', '主力總淨買賣(張)', '最新收盤價', 'EMA20(月線)', '本益比(PE)', '淨值比(PB)']
-            # 動態抓取後面的外資投信日期欄位
             extra_cols = [c for c in df_synergy.columns if c not in base_syn_cols]
             df_synergy = df_synergy[[c for c in base_syn_cols if c in df_synergy.columns] + extra_cols]
-        # --- 👆 修復結束 ---
 
         st.markdown("#### 🎯 主力分點共振雷達")
         if not df_synergy.empty:
@@ -239,10 +259,10 @@ with tab_tw:
         else:
             st.info("本日市場量能萎縮，無符合技術面起漲之飆股訊號。")
     else:
-        st.info("🕒 目前雲端尚無台股戰報資料，請等待後台爬蟲執行與上傳...")
+        st.info("🕒 目前雲端尚無台股籌碼戰報資料...")
 
 # ------------------------------------------
-# 🦅 第三分頁：美股常規戰區 (🚀全新上線)
+# 🦅 第三分頁：美股常規戰區
 # ------------------------------------------
 with tab_us_reg:
     us_records = load_us_data()
@@ -272,10 +292,10 @@ with tab_us_reg:
             st.markdown("#### 🎯 強弱勢領頭羊解析")
             st.dataframe(df_leaders, use_container_width=True, height=500)
     else:
-        st.info("🕒 目前雲端尚無美股戰報資料，請等待後台爬蟲執行與上傳...")
+        st.info("🕒 目前雲端尚無美股戰報資料...")
 
 # ------------------------------------------
-# 🌙 第四分頁：美股盤後戰區 (準備中)
+# 🌙 第四分頁：美股盤後戰區
 # ------------------------------------------
 with tab_us_after:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -283,10 +303,9 @@ with tab_us_after:
     with col2:
         st.info("🌙 **美股盤後突發監測站建置中**")
         st.write("專注捕捉財報發布、重要經濟數據出爐後的盤後劇烈波動，提早預判隔日台股開盤風向。")
-        st.progress(20, text="API 盤後數據源串接測試中 20%")
 
 # ------------------------------------------
-# 🐉 第五分頁：港陸戰區 (準備中)
+# 🐉 第五分頁：港陸戰區
 # ------------------------------------------
 with tab_hk:
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -294,10 +313,9 @@ with tab_hk:
     with col2:
         st.error("🐉 **港陸股熱錢追蹤系統規劃中**") 
         st.write("預計串接恆生指數與滬深 300 重點標的，掌握外資與北水南下的資金博弈。")
-        st.progress(10, text="資料庫串接進度 10%")
 
 # ------------------------------------------
-# 🛢️ 第六分頁：原物料與期貨戰區 (🚀全新上線)
+# 🛢️ 第六分頁：原物料與期貨戰區
 # ------------------------------------------
 with tab_commodities:
     comm_records = load_commodities_data()
@@ -314,7 +332,6 @@ with tab_commodities:
         
         df_commodities = pd.DataFrame(selected_comm_record.get('commodities_data', []))
         if not df_commodities.empty:
-            # 讓原物料置中並稍微限制寬度，看起來比較精緻
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 st.dataframe(df_commodities, use_container_width=True)
@@ -339,4 +356,5 @@ disclaimer_html = """
 </div>
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
+st.markdown(disclaimer_html, unsafe_allow_html=True)
 st.markdown(disclaimer_html, unsafe_allow_html=True)
