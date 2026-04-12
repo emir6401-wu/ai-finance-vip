@@ -303,13 +303,13 @@ with tab_us_reg:
         st.info("🕒 目前雲端尚無美股戰報資料...")
 
 # ------------------------------------------
-# 🌙 第四分頁：美股盤後戰區 (更新完畢)
+# 🌙 第四分頁：美股盤後戰區 (精準對接修復版)
 # ------------------------------------------
 with tab_us_after:
     after_records = load_us_after_data()
     
     if after_records:
-        # 轉換時間格式以便美化顯示 (例: 04/12 05:30)
+        # 轉換時間格式以便美化顯示
         def format_after_time(record):
             raw_time = record['report_time']
             try:
@@ -320,7 +320,6 @@ with tab_us_after:
 
         selected_after = st.selectbox("📖 選擇盤後戰報時段：", options=after_records, format_func=format_after_time, key="us_after_selectbox")
         
-        # 獲取顯示用的時間字串
         try:
             display_time = datetime.strptime(selected_after['report_time'], '%Y-%m-%d %H:%M:%S').strftime("%Y/%m/%d %H:%M")
         except:
@@ -329,13 +328,19 @@ with tab_us_after:
         st.markdown(f"### 🌙 美股盤後異動監控")
         st.caption(f"報告生成時間：{display_time}")
         
+        # 🤖 AI 評論防呆顯示
         st.success("**🤖 AI 盤後概念連動分析**")
-        st.write(selected_after['ai_analysis'])
+        ai_text = selected_after.get('ai_analysis')
+        if not ai_text or str(ai_text).strip() == "":
+            st.warning("⚠️ 本次戰報未捕捉到 AI 評論 (可能因 API 連線超時或未設定金鑰)。")
+        else:
+            st.write(ai_text)
         
-        df_after = pd.DataFrame(selected_after['top_movers'])
+        # 📊 數據表格顯示 (已修復欄位對接)
+        df_after = pd.DataFrame(selected_after.get('top_movers', []))
         if not df_after.empty:
-            # 強制欄位順序防呆
-            cols = ['板塊', '代號', '名稱', '盤後變動(%)', '盤後價', '連動概念']
+            # 🎯 這裡的名稱已經完全對齊您爬蟲程式的輸出！
+            cols = ['板塊', '代號', '名稱', '盤後漲幅(%)', '最新盤後價', '連動族群']
             df_after = df_after[[c for c in cols if c in df_after.columns]]
             
             st.markdown("#### 🚀 盤後重點異動名單")
@@ -345,7 +350,6 @@ with tab_us_after:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.info("🌙 正在監控盤後交易中，目前尚無顯著波動戰報上傳。")
-
 # ------------------------------------------
 # 🐉 第五分頁：港陸戰區
 # ------------------------------------------
