@@ -128,6 +128,14 @@ def load_us_data():
         return response.data
     except: return []
 
+# ⚡ 新增：美股盤後專屬讀取
+@st.cache_data(ttl=60)
+def load_us_after_data():
+    try:
+        response = supabase.table("us_after_hours_reports").select("*").order("report_time", desc=True).limit(5).execute()
+        return response.data
+    except: return []
+
 @st.cache_data(ttl=60)
 def load_commodities_data():
     try:
@@ -295,14 +303,48 @@ with tab_us_reg:
         st.info("🕒 目前雲端尚無美股戰報資料...")
 
 # ------------------------------------------
-# 🌙 第四分頁：美股盤後戰區
+# 🌙 第四分頁：美股盤後戰區 (更新完畢)
 # ------------------------------------------
 with tab_us_after:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.info("🌙 **美股盤後突發監測站建置中**")
-        st.write("專注捕捉財報發布、重要經濟數據出爐後的盤後劇烈波動，提早預判隔日台股開盤風向。")
+    after_records = load_us_after_data()
+    
+    if after_records:
+        # 轉換時間格式以便美化顯示 (例: 04/12 05:30)
+        def format_after_time(record):
+            raw_time = record['report_time']
+            try:
+                dt = datetime.strptime(raw_time, '%Y-%m-%d %H:%M:%S')
+                return dt.strftime("%m/%d %H:%M 戰報")
+            except:
+                return raw_time
+
+        selected_after = st.selectbox("📖 選擇盤後戰報時段：", options=after_records, format_func=format_after_time, key="us_after_selectbox")
+        
+        # 獲取顯示用的時間字串
+        try:
+            display_time = datetime.strptime(selected_after['report_time'], '%Y-%m-%d %H:%M:%S').strftime("%Y/%m/%d %H:%M")
+        except:
+            display_time = selected_after['report_time']
+
+        st.markdown(f"### 🌙 美股盤後異動監控")
+        st.caption(f"報告生成時間：{display_time}")
+        
+        st.success("**🤖 AI 盤後概念連動分析**")
+        st.write(selected_after['ai_analysis'])
+        
+        df_after = pd.DataFrame(selected_after['top_movers'])
+        if not df_after.empty:
+            # 強制欄位順序防呆
+            cols = ['板塊', '代號', '名稱', '盤後變動(%)', '盤後價', '連動概念']
+            df_after = df_after[[c for c in cols if c in df_after.columns]]
+            
+            st.markdown("#### 🚀 盤後重點異動名單")
+            st.dataframe(df_after, use_container_width=True, height=450)
+    else:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.info("🌙 正在監控盤後交易中，目前尚無顯著波動戰報上傳。")
 
 # ------------------------------------------
 # 🐉 第五分頁：港陸戰區
@@ -356,4 +398,5 @@ disclaimer_html = """
 </div>
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
+st.markdown(disclaimer_html, unsafe_allow_html=True)
 st.markdown(disclaimer_html, unsafe_allow_html=True)
