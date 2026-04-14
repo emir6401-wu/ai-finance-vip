@@ -403,4 +403,4 @@ disclaimer_html = """
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
 st.markdown(disclaimer_html, unsafe_allow_html=True)
-st.markdown(disclaimer_html, unsafe_allow_html=True)
+
