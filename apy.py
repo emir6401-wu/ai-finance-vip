@@ -196,14 +196,13 @@ tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_realtime = st.tabs([
 ])
 
 # ------------------------------------------
-# 🌏 第一分頁：亞洲戰區 (📱 鋼鐵定格防誤觸 + 完美字體修正版)
+# 🌏 第一分頁：亞洲戰區 (📱 昨收基準對齊完全體)
 # ------------------------------------------
 with tab_asia:
     records = load_daily_data()
     if records:
         try:
             latest_record = records[0]
-            
             data_package = None
             try:
                 data_package = json.loads(latest_record['ai_strategy'])
@@ -211,7 +210,8 @@ with tab_asia:
                 data_package = None
             
             if data_package and "trends" in data_package:
-                st.info(f"⏰ **雲端大數據最新同步時間：{data_package['latest_update']}** (每 5 分鐘高頻率自動刷新 ｜ 虛線橫線為今日各股開盤基準點)")
+                # 🎯 標題提示更新：修改為「昨收 0% 基準線」
+                st.info(f"⏰ **雲端大數據最新同步時間：{data_package['latest_update']}** (每 5 分鐘高頻率自動刷新 ｜ 虛線橫線為【昨收價 0%】基準線，完美呈現開盤跳空變動)")
                 st.markdown("---")
                 
                 def draw_matrix_chart(group_name, country_name, trends_data):
@@ -230,13 +230,12 @@ with tab_asia:
                                     name=info['name'],
                                     line=dict(width=2.2),
                                     customdata=info['closes'],
-                                    hovertemplate='<b>%{text}</b><br>相對變動: %{y:+.2f}%<br>最新報價: %{customdata:,}<extra></extra>',
+                                    hovertemplate='<b>%{text}</b><br>昨收相對變動: %{y:+.2f}%<br>最新報價: %{customdata:,}<extra></extra>',
                                     text=[info['name']]*len(info['times'])
                                 ))
                                 
                     if not has_line: return None
                     
-                    # 🎯 終極修復：移除 fontweight 參數，改用 HTML 的 <b> 標籤來達成完美跨端加粗
                     fig.update_layout(
                         title=dict(
                             text=f"<b>{'🇯🇵 日本' if country_name=='日本' else '🇰🇷 韓國'} - {group_name[3:]}</b>",
@@ -255,8 +254,9 @@ with tab_asia:
                             tickmode='linear',
                             dtick=12
                         ),
+                        # 🎯 坐標軸文字修復：修改為「昨收相對漲跌 (%)」
                         yaxis=dict(
-                            title="開盤相對漲跌 (%)", 
+                            title="昨收相對漲跌 (%)", 
                             gridcolor='#f5f5f5', 
                             showline=True, 
                             linecolor='#bdc3c7', 
@@ -399,7 +399,7 @@ st.divider()
 disclaimer_html = """
 <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #d9534f; color: #555; font-size: 13px; line-height: 1.6;'>
     <strong>⚖️ 法律免責聲明 (Disclaimer)：</strong><br>
-    本平台所提供之全球金融市場、日韓半導體板塊及各類期貨、加密貨幣之 5 分鐘與盤後量化大數據，純屬程式自動化運算與邏輯推演之歷史軌跡呈現。文內所有數據、圖表及自動化分析摘要，僅供學術探討與量化研究參考，絕不構成任何形式的個股推薦、買賣邀約或投資建議。金融市場交易具備極高風險，大數據與過去走勢不代表未來獲利保證。資訊提供者不對 any 讀者之交易決策負擔任何法律責任，亦不承擔因系統延遲、數據誤差或交易所突發中斷所引發的任何交易損失。
+    本平台所 provide 之全球金融市場、日韓半導體板塊及各類期貨、加密貨幣之 5 分鐘與盤後量化大數據，純屬程式自動化運算與邏輯推演之歷史軌跡呈現。文內所有數據、圖表及自動化分析摘要，僅供學術探討與量化研究參考，絕不構成任何形式的個股推薦、買賣邀約或投資建議。金融市場交易具備極高風險，大數據與過去走勢不代表未來獲利保證。資訊提供者不對 any 讀者之交易決策負擔 any 法律責任，亦不承擔因系統延遲、數據誤差或交易所突發中斷所引發的任何交易損失。
 </div>
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
