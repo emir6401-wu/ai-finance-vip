@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 import time
-import json # 🎯 補上 JSON 解析引擎
+import json 
 
 # ==========================================
 # 🔑 雲端金鑰區 (讀取 Streamlit Secrets)
@@ -196,15 +196,13 @@ tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_realtime = st.tabs([
 ])
 
 # ------------------------------------------
-# 🌏 第一分頁：亞洲戰區 (🔥 安全氣囊防護版)
+# 🌏 第一分頁：亞洲戰區 (📱 鋼鐵定格防誤觸 + 時間大稀釋版)
 # ------------------------------------------
 with tab_asia:
     records = load_daily_data()
     if records:
         try:
             latest_record = records[0]
-            
-            # 🎯 核心防護安全氣囊：嘗試解析 JSON，如果解析失敗說明是舊版純文字
             data_package = None
             try:
                 data_package = json.loads(latest_record['ai_strategy'])
@@ -238,13 +236,43 @@ with tab_asia:
                     if not has_line: return None
                     
                     fig.update_layout(
-                        height=300,
-                        margin=dict(l=45, r=10, t=35, b=25),
-                        xaxis=dict(gridcolor='#f5f5f5', showline=True, linecolor='#bdc3c7', tickangle=0),
-                        yaxis=dict(title="開盤相對漲跌 (%)", gridcolor='#f5f5f5', showline=True, linecolor='#bdc3c7'),
+                        title=dict(
+                            text=f"{'🇯🇵 日本' if country_name=='日本' else '🇰🇷 韓國'} - {group_name[3:]}",
+                            font=dict(size=14, fontweight='bold', color='#2c3e50')
+                        ),
+                        height=350, 
+                        margin=dict(l=45, r=15, t=55, b=55), 
+                        # 🎯 縱橫兩軸硬核植入 fixedrange=True，物理閹割放大縮小，手機隨便滑線條絕不消失！
+                        # 🎯 導入 tickmode='linear' 搭配 dtick=12，每 12 根線（1小時）才蓋章一次時間，徹底根治模糊！
+                        xaxis=dict(
+                            type='category',
+                            gridcolor='#f5f5f5', 
+                            showline=True, 
+                            linecolor='#bdc3c7', 
+                            tickangle=0, 
+                            automargin=True,
+                            fixedrange=True,
+                            tickmode='linear',
+                            dtick=12
+                        ),
+                        yaxis=dict(
+                            title="開盤相對漲跌 (%)", 
+                            gridcolor='#f5f5f5', 
+                            showline=True, 
+                            linecolor='#bdc3c7', 
+                            automargin=True,
+                            fixedrange=True
+                        ),
                         plot_bgcolor='white',
                         paper_bgcolor='white',
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=10)),
+                        legend=dict(
+                            orientation="h", 
+                            yanchor="top", 
+                            y=-0.18, 
+                            xanchor="left", 
+                            x=0, 
+                            font=dict(size=9.5)
+                        ),
                         showlegend=True
                     )
                     fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=0, xref='paper', yref='y', line=dict(color="#95a5a6", width=1.2, dash="dash"))
@@ -253,21 +281,22 @@ with tab_asia:
                 GRID_GROUPS = ["1. 核心設備區", "2. 材料與晶圓片", "3. 封裝基板與電容", "4. 晶片與記憶體代工"]
                 
                 for group_title in GRID_GROUPS:
-                    st.markdown(f"#### 📊 板塊對齊：{group_title[3:]}")
                     col_ja, col_ko = st.columns(2)
                     
                     with col_ja:
                         fig_ja = draw_matrix_chart(group_title, "日本", data_package['trends'])
-                        if fig_ja: st.plotly_chart(fig_ja, use_container_width=True, key=f"web_ja_{group_title}")
+                        if fig_ja: 
+                            # 🎯 config 注入 staticPlot: False，但配合 ax.fixedrange 鎖定；並用 displayModeBar: False 隱藏工具列！
+                            st.plotly_chart(fig_ja, use_container_width=True, key=f"web_ja_{group_title}", config={'scrollZoom': False, 'displayModeBar': False, 'responsive': True})
                         else: st.info(f"日本 - {group_title[3:]} 盤中暫無有效波動線")
                         
                     with col_ko:
                         fig_ko = draw_matrix_chart(group_title, "韓國", data_package['trends'])
-                        if fig_ko: st.plotly_chart(fig_ko, use_container_width=True, key=f"web_ko_{group_title}")
+                        if fig_ko: 
+                            st.plotly_chart(fig_ko, use_container_width=True, key=f"web_ko_{group_title}", config={'scrollZoom': False, 'displayModeBar': False, 'responsive': True})
                         else: st.info(f"韓國 - {group_title[3:]} 盤中暫無有效波動線")
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
-                # 🎯 捕捉到舊資料時優雅過濾，不崩潰畫面
                 st.warning("🔄 網頁端框架已成功升級！目前資料庫中皆為週末休市前的舊版文字紀錄。")
                 st.info("💡 **下一輪開盤提示**：當您的 Mac 端發射站重啟並發射今日第一根 5 分鐘 K 線 JSON 數據後，這張紅色的報錯就會消失，4x2 矩陣大畫布會立刻自動成型！")
         except Exception as e:
