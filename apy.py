@@ -138,7 +138,7 @@ def load_us_after_data():
     except: return []
 
 # ==========================================
-# ⚡ ⚡ 第六分頁專用：光速資料提領引擎 (讀取本地 RAD.py 傳送的數據)
+# ⚡ ⚡ 第六分頁專用：光速資料提領引擎
 # ==========================================
 @st.cache_data(ttl=60)
 def fetch_realtime_payload():
@@ -196,22 +196,25 @@ tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_realtime = st.tabs([
 ])
 
 # ------------------------------------------
-# 🌏 第一分頁：亞洲戰區 (🔥 按照總監要求，重構為 4x2 半導體分時矩陣走線)
+# 🌏 第一分頁：亞洲戰區 (🔥 安全氣囊防護版)
 # ------------------------------------------
 with tab_asia:
     records = load_daily_data()
     if records:
         try:
-            # 提領 Mac 發射站最新打上雲端的即時全套 K 線包
             latest_record = records[0]
-            data_package = json.loads(latest_record['ai_strategy'])
+            
+            # 🎯 核心防護安全氣囊：嘗試解析 JSON，如果解析失敗說明是舊版純文字
+            data_package = None
+            try:
+                data_package = json.loads(latest_record['ai_strategy'])
+            except (json.JSONDecodeError, TypeError):
+                data_package = None
             
             if data_package and "trends" in data_package:
-                # 🎯 在頂部醒目展示發射站的最新探勘時間戳
                 st.info(f"⏰ **雲端大數據最新同步時間：{data_package['latest_update']}** (每 5 分鐘高頻率自動刷新 ｜ 虛線橫線為今日各股開盤基準點)")
                 st.markdown("---")
                 
-                # 互動式矩陣製圖小幫手
                 def draw_matrix_chart(group_name, country_name, trends_data):
                     fig = go.Figure()
                     has_line = False
@@ -249,25 +252,24 @@ with tab_asia:
 
                 GRID_GROUPS = ["1. 核心設備區", "2. 材料與晶圓片", "3. 封裝基板與電容", "4. 晶片與記憶體代工"]
                 
-                # 橫向渲染 4 排 Row
                 for group_title in GRID_GROUPS:
                     st.markdown(f"#### 📊 板塊對齊：{group_title[3:]}")
                     col_ja, col_ko = st.columns(2)
                     
-                    # 左欄全日本 (精準 3 檔)
                     with col_ja:
                         fig_ja = draw_matrix_chart(group_title, "日本", data_package['trends'])
                         if fig_ja: st.plotly_chart(fig_ja, use_container_width=True, key=f"web_ja_{group_title}")
                         else: st.info(f"日本 - {group_title[3:]} 盤中暫無有效波動線")
                         
-                    # 右欄全韓國 (精準 3 檔)
                     with col_ko:
                         fig_ko = draw_matrix_chart(group_title, "韓國", data_package['trends'])
                         if fig_ko: st.plotly_chart(fig_ko, use_container_width=True, key=f"web_ko_{group_title}")
                         else: st.info(f"韓國 - {group_title[3:]} 盤中暫無有效波動線")
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
-                st.warning("🔄 雲端數據通訊正常，正在等待今日首輪 5 分鐘數據定錨...")
+                # 🎯 捕捉到舊資料時優雅過濾，不崩潰畫面
+                st.warning("🔄 網頁端框架已成功升級！目前資料庫中皆為週末休市前的舊版文字紀錄。")
+                st.info("💡 **下一輪開盤提示**：當您的 Mac 端發射站重啟並發射今日第一根 5 分鐘 K 線 JSON 數據後，這張紅色的報錯就會消失，4x2 矩陣大畫布會立刻自動成型！")
         except Exception as e:
             st.error(f"❌ 矩陣畫布渲染受阻: {e}")
     else:
