@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pytz
 import plotly.graph_objects as go
 import time
+import json # 🎯 補上 JSON 解析引擎
 
 # ==========================================
 # 🔑 雲端金鑰區 (讀取 Streamlit Secrets)
@@ -195,29 +196,85 @@ tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_realtime = st.tabs([
 ])
 
 # ------------------------------------------
-# 🌏 第一分頁：亞洲戰區 (保持原樣)
+# 🌏 第一分頁：亞洲戰區 (🔥 按照總監要求，重構為 4x2 半導體分時矩陣走線)
 # ------------------------------------------
 with tab_asia:
     records = load_daily_data()
     if records:
-        tz = pytz.timezone('Asia/Taipei')
-        def format_time(record):
-            dt = datetime.fromisoformat(record['created_at']).astimezone(tz)
-            return dt.strftime("%Y/%m/%d - %H:%M")
-        st.markdown("### 📊 亞洲熱錢觀測")
-        selected_record = st.selectbox("📖 請選擇戰報時間：", options=records, format_func=format_time, key="asia_selectbox")
-        st.success("**🤖 AI 戰略分析與狙擊暗示**")
-        st.write(selected_record['ai_strategy'])
-        df_gainers = pd.DataFrame(selected_record['gainers_data'])
-        df_losers = pd.DataFrame(selected_record['losers_data'])
-        col1, col2 = st.columns(2)
-        with col1: st.dataframe(df_gainers, use_container_width=True, height=400)
-        with col2: st.dataframe(df_losers, use_container_width=True, height=400)
+        try:
+            # 提領 Mac 發射站最新打上雲端的即時全套 K 線包
+            latest_record = records[0]
+            data_package = json.loads(latest_record['ai_strategy'])
+            
+            if data_package and "trends" in data_package:
+                # 🎯 在頂部醒目展示發射站的最新探勘時間戳
+                st.info(f"⏰ **雲端大數據最新同步時間：{data_package['latest_update']}** (每 5 分鐘高頻率自動刷新 ｜ 虛線橫線為今日各股開盤基準點)")
+                st.markdown("---")
+                
+                # 互動式矩陣製圖小幫手
+                def draw_matrix_chart(group_name, country_name, trends_data):
+                    fig = go.Figure()
+                    has_line = False
+                    
+                    for ticker, info in trends_data.items():
+                        if info.get('group') == group_name and info.get('country') == country_name:
+                            if info.get('times') and len(info['times']) > 0:
+                                has_line = True
+                                fig.add_trace(go.Scatter(
+                                    x=info['times'],
+                                    y=info['pcts'],
+                                    mode='lines+markers',
+                                    marker=dict(size=4),
+                                    name=info['name'],
+                                    line=dict(width=2.2),
+                                    customdata=info['closes'],
+                                    hovertemplate='<b>%{text}</b><br>相對變動: %{y:+.2f}%<br>最新報價: %{customdata:,}<extra></extra>',
+                                    text=[info['name']]*len(info['times'])
+                                ))
+                                
+                    if not has_line: return None
+                    
+                    fig.update_layout(
+                        height=300,
+                        margin=dict(l=45, r=10, t=35, b=25),
+                        xaxis=dict(gridcolor='#f5f5f5', showline=True, linecolor='#bdc3c7', tickangle=0),
+                        yaxis=dict(title="開盤相對漲跌 (%)", gridcolor='#f5f5f5', showline=True, linecolor='#bdc3c7'),
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0, font=dict(size=10)),
+                        showlegend=True
+                    )
+                    fig.add_shape(type="line", x0=0, y0=0, x1=1, y1=0, xref='paper', yref='y', line=dict(color="#95a5a6", width=1.2, dash="dash"))
+                    return fig
+
+                GRID_GROUPS = ["1. 核心設備區", "2. 材料與晶圓片", "3. 封裝基板與電容", "4. 晶片與記憶體代工"]
+                
+                # 橫向渲染 4 排 Row
+                for group_title in GRID_GROUPS:
+                    st.markdown(f"#### 📊 板塊對齊：{group_title[3:]}")
+                    col_ja, col_ko = st.columns(2)
+                    
+                    # 左欄全日本 (精準 3 檔)
+                    with col_ja:
+                        fig_ja = draw_matrix_chart(group_title, "日本", data_package['trends'])
+                        if fig_ja: st.plotly_chart(fig_ja, use_container_width=True, key=f"web_ja_{group_title}")
+                        else: st.info(f"日本 - {group_title[3:]} 盤中暫無有效波動線")
+                        
+                    # 右欄全韓國 (精準 3 檔)
+                    with col_ko:
+                        fig_ko = draw_matrix_chart(group_title, "韓國", data_package['trends'])
+                        if fig_ko: st.plotly_chart(fig_ko, use_container_width=True, key=f"web_ko_{group_title}")
+                        else: st.info(f"韓國 - {group_title[3:]} 盤中暫無有效波動線")
+                    st.markdown("<br>", unsafe_allow_html=True)
+            else:
+                st.warning("🔄 雲端數據通訊正常，正在等待今日首輪 5 分鐘數據定錨...")
+        except Exception as e:
+            st.error(f"❌ 矩陣畫布渲染受阻: {e}")
     else:
         st.info("🕒 報告區塊已於 06:00 淨空。正在等待今日的第一筆亞洲戰報上傳...")
 
 # ------------------------------------------
-# 🇹🇼 第二分頁：台股主力動向 (保持原樣)
+# 🇹🇼 第二分頁：台股主力動向 (保持原樣，絕不變動)
 # ------------------------------------------
 with tab_tw:
     bidask_data = load_bidask_data()
@@ -243,7 +300,7 @@ with tab_tw:
         st.dataframe(df_synergy, use_container_width=True, height=350)
 
 # ------------------------------------------
-# 🦅 第三分頁：美股常規戰區 (保持原樣)
+# 🦅 第三分頁：美股常規戰區 (保持原樣，絕不變動)
 # ------------------------------------------
 with tab_us_reg:
     us_records = load_us_data()
@@ -259,7 +316,7 @@ with tab_us_reg:
         with c2: st.dataframe(df_leaders, use_container_width=True, height=500)
 
 # ------------------------------------------
-# 🌙 第四分頁：美股盤後戰區 (保持原樣)
+# 🌙 第四分頁：美股盤後戰區 (保持原樣，絕不變動)
 # ------------------------------------------
 with tab_us_after:
     after_records = load_us_after_data()
@@ -272,13 +329,13 @@ with tab_us_after:
         st.dataframe(df_after, use_container_width=True, height=450)
 
 # ------------------------------------------
-# 🐉 第五分頁：港陸戰區 (保持原樣)
+# 🐉 第五分頁：港陸戰區 (保持原樣，絕不變動)
 # ------------------------------------------
 with tab_hk:
     st.error("🐉 **港陸股熱錢追蹤系統規劃中**") 
 
 # ------------------------------------------
-# ⚡ ⚡ 第六分頁：5分即時監控 (⚡ 改寫為光速讀取模式)
+# ⚡ ⚡ 第六分頁：5分即時監控 (保持原樣，絕不變動)
 # ------------------------------------------
 with tab_realtime:
     st.markdown("### ⚡ 全球資產 5 分鐘即時監控 (雲端讀取模式)")
@@ -299,22 +356,20 @@ with tab_realtime:
         render_realtime_panel(r2[3], payload.get('DXY'), "💵 美元指數 (DXY)")
         
         st.markdown("---")
-        # 增加網頁自動刷新倒數
         refresh_timer = st.empty()
-        # 這裡不使用 sleep 迴圈以免卡住其他分頁切換，僅顯示最後更新時間
         st.info(f"最後同步時間：{datetime.now(pytz.timezone('Asia/Taipei')).strftime('%H:%M:%S')}")
     else:
         st.warning("🔄 正在等待本地雷達站上傳首次數據，請確保您的 RAD.py 正在執行中...")
 
 # ==========================================
-# ⚖️ 網頁最底部：免責聲明與版權 (保持原樣)
+# ⚖️ 網頁最底部：免責聲明與版權 (保持原樣，絕不變動)
 # ==========================================
 st.markdown("<br><br><br>", unsafe_allow_html=True)
 st.divider()
 disclaimer_html = """
 <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #d9534f; color: #555; font-size: 13px; line-height: 1.6;'>
     <strong>⚖️ 法律免責聲明 (Disclaimer)：</strong><br>
-    ... (內容保持原樣) ...
+    本平台所提供之全球金融市場、日韓半導體板塊及各類期貨、加密貨幣之 5 分鐘與盤後量化大數據，純屬程式自動化運算與邏輯推演之歷史軌跡呈現。文內所有數據、圖表及自動化分析摘要，僅供學術探討與量化研究參考，絕不構成任何形式的個股推薦、買賣邀約或投資建議。金融市場交易具備極高風險，大數據與過去走勢不代表未來獲利保證。資訊提供者不對任何讀者之交易決策負擔任何法律責任，亦不承擔因系統延遲、數據誤差或交易所突發中斷所引發的任何交易損失。
 </div>
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
