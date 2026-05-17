@@ -196,13 +196,14 @@ tab_asia, tab_tw, tab_us_reg, tab_us_after, tab_hk, tab_realtime = st.tabs([
 ])
 
 # ------------------------------------------
-# 🌏 第一分頁：亞洲戰區 (📱 鋼鐵定格防誤觸 + 時間大稀釋版)
+# 🌏 第一分頁：亞洲戰區 (📱 鋼鐵定格防誤觸 + 完美字體修正版)
 # ------------------------------------------
 with tab_asia:
     records = load_daily_data()
     if records:
         try:
             latest_record = records[0]
+            
             data_package = None
             try:
                 data_package = json.loads(latest_record['ai_strategy'])
@@ -235,15 +236,14 @@ with tab_asia:
                                 
                     if not has_line: return None
                     
+                    # 🎯 終極修復：移除 fontweight 參數，改用 HTML 的 <b> 標籤來達成完美跨端加粗
                     fig.update_layout(
                         title=dict(
-                            text=f"{'🇯🇵 日本' if country_name=='日本' else '🇰🇷 韓國'} - {group_name[3:]}",
-                            font=dict(size=14, fontweight='bold', color='#2c3e50')
+                            text=f"<b>{'🇯🇵 日本' if country_name=='日本' else '🇰🇷 韓國'} - {group_name[3:]}</b>",
+                            font=dict(size=14, color='#2c3e50')
                         ),
                         height=350, 
                         margin=dict(l=45, r=15, t=55, b=55), 
-                        # 🎯 縱橫兩軸硬核植入 fixedrange=True，物理閹割放大縮小，手機隨便滑線條絕不消失！
-                        # 🎯 導入 tickmode='linear' 搭配 dtick=12，每 12 根線（1小時）才蓋章一次時間，徹底根治模糊！
                         xaxis=dict(
                             type='category',
                             gridcolor='#f5f5f5', 
@@ -286,7 +286,6 @@ with tab_asia:
                     with col_ja:
                         fig_ja = draw_matrix_chart(group_title, "日本", data_package['trends'])
                         if fig_ja: 
-                            # 🎯 config 注入 staticPlot: False，但配合 ax.fixedrange 鎖定；並用 displayModeBar: False 隱藏工具列！
                             st.plotly_chart(fig_ja, use_container_width=True, key=f"web_ja_{group_title}", config={'scrollZoom': False, 'displayModeBar': False, 'responsive': True})
                         else: st.info(f"日本 - {group_title[3:]} 盤中暫無有效波動線")
                         
@@ -400,7 +399,7 @@ st.divider()
 disclaimer_html = """
 <div style='background-color: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 5px solid #d9534f; color: #555; font-size: 13px; line-height: 1.6;'>
     <strong>⚖️ 法律免責聲明 (Disclaimer)：</strong><br>
-    本平台所提供之全球金融市場、日韓半導體板塊及各類期貨、加密貨幣之 5 分鐘與盤後量化大數據，純屬程式自動化運算與邏輯推演之歷史軌跡呈現。文內所有數據、圖表及自動化分析摘要，僅供學術探討與量化研究參考，絕不構成任何形式的個股推薦、買賣邀約或投資建議。金融市場交易具備極高風險，大數據與過去走勢不代表未來獲利保證。資訊提供者不對任何讀者之交易決策負擔任何法律責任，亦不承擔因系統延遲、數據誤差或交易所突發中斷所引發的任何交易損失。
+    本平台所提供之全球金融市場、日韓半導體板塊及各類期貨、加密貨幣之 5 分鐘與盤後量化大數據，純屬程式自動化運算與邏輯推演之歷史軌跡呈現。文內所有數據、圖表及自動化分析摘要，僅供學術探討與量化研究參考，絕不構成任何形式的個股推薦、買賣邀約或投資建議。金融市場交易具備極高風險，大數據與過去走勢不代表未來獲利保證。資訊提供者不對 any 讀者之交易決策負擔任何法律責任，亦不承擔因系統延遲、數據誤差或交易所突發中斷所引發的任何交易損失。
 </div>
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
