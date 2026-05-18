@@ -101,7 +101,8 @@ def get_time_window():
     end_time = start_time + timedelta(days=1)
     return start_time.isoformat(), end_time.isoformat()
 
-@st.cache_data(ttl=60)
+# 🎯 核心升級 1：將亞洲戰區快取極速縮短至 15 秒，配合網頁的高頻自動刷新率
+@st.cache_data(ttl=15)
 def load_daily_data():
     start_iso, end_iso = get_time_window()
     try:
@@ -140,7 +141,7 @@ def load_us_after_data():
 # ==========================================
 # ⚡ ⚡ 第六分頁專用：光速資料提領引擎
 # ==========================================
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=15)
 def fetch_realtime_payload():
     try:
         response = supabase.table("macro_5m_data").select("payload").eq("id", 1).execute()
@@ -235,7 +236,6 @@ with tab_asia:
                                 
                     if not has_line: return None
                     
-                    # 🎯 【防糊防重疊核心】：利用 Category 軸，並動態精準提取 5 個時間刻度，手機看盤永不重疊！
                     all_times = info['times']
                     if len(all_times) > 0:
                         step = max(1, len(all_times) // 5)
@@ -255,13 +255,13 @@ with tab_asia:
                         xaxis=dict(
                             type='category',
                             tickmode='array',
-                            tickvals=tick_vals, # 🎯 塞入稀釋後的 5 個時間點
+                            tickvals=tick_vals, 
                             gridcolor='#f5f5f5', 
                             showline=True, 
                             linecolor='#bdc3c7', 
                             tickangle=0, 
                             automargin=True,
-                            fixedrange=True # 🔒 物理閹割放大功能，手機隨便滑絕不誤觸消失
+                            fixedrange=True 
                         ),
                         yaxis=dict(
                             title="昨收相對漲跌 (%)", 
@@ -269,7 +269,7 @@ with tab_asia:
                             showline=True, 
                             linecolor='#bdc3c7', 
                             automargin=True,
-                            fixedrange=True # 🔒 物理閹割放大功能
+                            fixedrange=True 
                         ),
                         plot_bgcolor='white',
                         paper_bgcolor='white',
@@ -305,7 +305,7 @@ with tab_asia:
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
                 st.warning("🔄 網頁端框架已成功升級！目前資料庫中皆為週末休市前的舊版文字紀錄。")
-                st.info("💡 **下一輪開盤提示**：當您的 Mac 端發射站重啟並發射今日第一根 5 分鐘 K 線 JSON 數據後，這張紅色的報錯就會消失，4x2 矩陣大畫布會立刻自動成型！")
+                st.info("💡 **下一輪開盤提示**：當您的 Mac 端發射站重啟並發射今日第一根 5 分鐘 K 線 JSON 數據後，這張紅色的報報就會消失，4x2 矩陣大畫布會立刻自動成型！")
         except Exception as e:
             st.error(f"❌ 矩陣畫布渲染受阻: {e}")
     else:
@@ -394,7 +394,6 @@ with tab_realtime:
         render_realtime_panel(r2[3], payload.get('DXY'), "💵 美元指數 (DXY)")
         
         st.markdown("---")
-        refresh_timer = st.empty()
         st.info(f"最後同步時間：{datetime.now(pytz.timezone('Asia/Taipei')).strftime('%H:%M:%S')}")
     else:
         st.warning("🔄 正在等待本地雷達站上傳首次數據，請確保您的 RAD.py 正在執行中...")
@@ -412,3 +411,15 @@ disclaimer_html = """
 <p style='text-align: center; color: gray; font-size: 12px; margin-top: 15px;'>© 2026 AI 戰略總部 | 全球熱錢羅盤 SaaS</p>
 """
 st.markdown(disclaimer_html, unsafe_allow_html=True)
+
+# ==============================================================================
+# 🎯 核心升級 2：全自動自發性網頁刷新心臟 (部署於程式碼最末端，外部獨立運作)
+# ==============================================================================
+REFRESH_INTERVAL = 30  # 🎯 設定網頁每 30 秒自動大重整一次，秒刷最新盤中 K 線
+countdown_placeholder = st.sidebar.empty()
+
+for remaining in range(REFRESH_INTERVAL, 0, -1):
+    countdown_placeholder.markdown(f"🔄 **雷達自動更新倒數：{remaining:2d} 秒**")
+    time.sleep(1)
+
+st.rerun()
