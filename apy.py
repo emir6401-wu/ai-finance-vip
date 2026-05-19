@@ -101,7 +101,6 @@ def get_time_window():
     end_time = start_time + timedelta(days=1)
     return start_time.isoformat(), end_time.isoformat()
 
-# 🎯 核心升級 1：將亞洲戰區快取極速縮短至 15 秒，配合網頁的高頻自動刷新率
 @st.cache_data(ttl=15)
 def load_daily_data():
     start_iso, end_iso = get_time_window()
@@ -156,12 +155,20 @@ def draw_realtime_chart(df):
     h = 'High' if 'High' in df.columns else 'high'
     l = 'Low' if 'Low' in df.columns else 'low'
     c = 'Close' if 'Close' in df.columns else 'close'
+    
     fig = go.Figure(data=[go.Candlestick(
         x=df['TimeStr'], open=df[o], high=df[h],
         low=df[l], close=df[c],
         increasing_line_color='red', decreasing_line_color='green' 
     )])
-    fig.update_layout(height=250, margin=dict(l=10, r=10, t=10, b=10), xaxis_rangeslider_visible=False)
+    
+    # 🎯 核心特調：雙軸強制注入 fixedrange=True 阻斷放大機制，並斬斷底層 Slider 橫軌，實現極致定格
+    fig.update_layout(
+        height=250, 
+        margin=dict(l=10, r=10, t=10, b=10), 
+        xaxis=dict(fixedrange=True, rangeslider_visible=False, type='category'),
+        yaxis=dict(fixedrange=True)
+    )
     return fig
 
 def render_realtime_panel(col_obj, data_info, title, unit=""):
@@ -177,7 +184,8 @@ def render_realtime_panel(col_obj, data_info, title, unit=""):
                 sign = "+" if diff > 0 else ""
                 delta_str = f"{sign}{diff:,.2f} ({sign}{pct_change:.2f}%)"
                 st.metric(label=title, value=f"{latest_price:,.2f} {unit}", delta=delta_str, delta_color="inverse")
-                st.plotly_chart(draw_realtime_chart(df), use_container_width=True)
+                # 🔒 透過 config 封死雙指縮放功能
+                st.plotly_chart(draw_realtime_chart(df), use_container_width=True, config={'scrollZoom': False, 'displayModeBar': False})
             else: st.info(f"{title} 今日無效數據")
         else: st.info(f"{title} 雲端無數據")
 
@@ -373,21 +381,26 @@ with tab_hk:
     st.error("🐉 **港陸股熱錢追蹤系統規劃中**") 
 
 # ------------------------------------------
-# ⚡ ⚡ 第六分頁：5分即時監控 (保持原樣，絕不變動)
+# ⚡ ⚡ 第六分頁：5分即時監控 (📱 鋼鐵定格防震 + 滬深300特調版)
 # ------------------------------------------
 with tab_realtime:
     st.markdown("### ⚡ 全球資產 5 分鐘即時監控 (雲端讀取模式)")
-    st.caption("數據來源：本地電腦 RAD.py 每 5 分鐘自動覆蓋更新")
+    st.caption("數據來源：本地電腦 test_run.py 每 5 分鐘自動覆蓋更新")
     
     payload = fetch_realtime_payload()
     
     if payload:
         r1 = st.columns(4)
         r2 = st.columns(4)
-        render_realtime_panel(r1[0], payload.get('EC'), "🚢 歐線集運主連 (EC)")
-        render_realtime_panel(r1[1], payload.get('PVC'), "🛢️ 塑化主連 (PVC)")
+        
+        # 第一排：歐線、滬深300、美債、黃金
+        render_realtime_panel(r1[0], payload.get('EC'), "🚢 歐線集運主連 (EC)", "點")
+        # 🎯 核心修正點：正式將 PVC 塑化下架，完美對接雲端傳回的 CSI300 指數
+        render_realtime_panel(r1[1], payload.get('CSI300'), "🇨🇳 滬深300指數 (CSI300)", "點")
         render_realtime_panel(r1[2], payload.get('Bond_10Y'), "🏦 10Y 美債殖利率", "%")
         render_realtime_panel(r1[3], payload.get('Gold'), "✨ 黃金期貨", "USD")
+        
+        # 第二排：銅價、原油、比特幣、美元指數
         render_realtime_panel(r2[0], payload.get('Copper'), "🏗️ 銅價期貨", "USD")
         render_realtime_panel(r2[1], payload.get('Brent'), "🛢️ 布蘭特原油", "USD")
         render_realtime_panel(r2[2], payload.get('BTC'), "🪙 比特幣 (BTC)", "USD")
@@ -396,7 +409,7 @@ with tab_realtime:
         st.markdown("---")
         st.info(f"最後同步時間：{datetime.now(pytz.timezone('Asia/Taipei')).strftime('%H:%M:%S')}")
     else:
-        st.warning("🔄 正在等待本地雷達站上傳首次數據，請確保您的 RAD.py 正在執行中...")
+        st.warning("🔄 正在等待本地雷達站上傳首次數據，請確保您的 test_run.py 正在執行中...")
 
 # ==========================================
 # ⚖️ 網頁最底部：免責聲明與版權 (保持原樣，絕不變動)
@@ -413,9 +426,9 @@ disclaimer_html = """
 st.markdown(disclaimer_html, unsafe_allow_html=True)
 
 # ==============================================================================
-# 🎯 核心升級 2：全自動自發性網頁刷新心臟 (部署於程式碼最末端，外部獨立運作)
+# 🎯 全自動自發性網頁刷新心臟
 # ==============================================================================
-REFRESH_INTERVAL = 30  # 🎯 設定網頁每 30 秒自動大重整一次，秒刷最新盤中 K 線
+REFRESH_INTERVAL = 30  
 countdown_placeholder = st.sidebar.empty()
 
 for remaining in range(REFRESH_INTERVAL, 0, -1):
